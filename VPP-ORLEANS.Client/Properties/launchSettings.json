@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VPP-ORLEANS.Client": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="Silo/VPP-ORLEANS.Silo.csproj" />
+  <Project Path="VPP-ORLEANS.ApiService/VPP-ORLEANS.ApiService.csproj" />
+  <Project Path="VPP-ORLEANS.AppHost/VPP-ORLEANS.AppHost.csproj" />
+  <Project Path="VPP-ORLEANS.GrainInterfaces/VPP-ORLEANS.GrainInterfaces.csproj" />
+  <Project Path="VPP-ORLEANS.Grains/VPP-ORLEANS.Grains.csproj" />
+  <Project Path="VPP-ORLEANS.ServiceDefaults/VPP-ORLEANS.ServiceDefaults.csproj" />
+  <Project Path="VPP-ORLEANS.Web/VPP-ORLEANS.Web.csproj" />
+</Solution>
