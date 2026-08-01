@@ -8,10 +8,7 @@ builder.AddServiceDefaults();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddHttpClient<WeatherApiClient>(client =>
-    client.BaseAddress = new("https+http://apiservice"));
-
-builder.Services.AddHttpClient<ScheduleApiClient>(client =>
+builder.Services.AddHttpClient<SiteApiClient>(client =>
     client.BaseAddress = new("https+http://apiservice"));
 
 var app = builder.Build();

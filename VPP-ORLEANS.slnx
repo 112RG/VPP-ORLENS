@@ -6,4 +6,5 @@
   <Project Path="VPP-ORLEANS.Grains/VPP-ORLEANS.Grains.csproj" />
   <Project Path="VPP-ORLEANS.ServiceDefaults/VPP-ORLEANS.ServiceDefaults.csproj" />
   <Project Path="VPP-ORLEANS.Web/VPP-ORLEANS.Web.csproj" />
+  <Project Path="VPP-ORLEANS.Contracts/VPP-ORLEANS.Contracts.csproj" />
 </Solution>

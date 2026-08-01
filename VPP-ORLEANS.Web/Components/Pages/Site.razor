@@ -1,0 +1,85 @@
+@page "/site"
+@rendermode InteractiveServer
+@inject VPP_ORLEANS.Web.SiteApiClient Client
+@implements IDisposable
+
+<PageTitle>Sites</PageTitle>
+
+<h1>Sites</h1>
+
+<p class="text-muted small">
+    Last tick: @(lastTick == default ? "--" : lastTick.ToString("HH:mm:ss"))
+    <span class="ms-2 badge bg-success">live</span>
+</p>
+
+<div class="mb-3">
+    <div class="input-group">
+        <input @bind="newSiteTitle" @bind:event="oninput"
+               class="form-control" placeholder="Add a site..." />
+        <button class="btn btn-primary" @onclick="AddSite" disabled="@(string.IsNullOrWhiteSpace(newSiteTitle))">
+            Add
+        </button>
+    </div>
+</div>
+
+@if (sites is null)
+{
+    <p>Loading...</p>
+}
+else if (sites.Length == 0)
+{
+    <p class="text-muted">No sites yet.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var site in sites)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox"
+                           checked="@site.IsActive"
+                           @onchange="() => ToggleSite(site.Title)" />
+                    <label class="form-check-label @(site.IsActive ? "text-decoration-line-through text-muted" : "")">
+                        @site.Title
+                    </label>
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private string newSiteTitle = "";
+    private VPP_ORLEANS.Contracts.SiteItem[]? sites;
+    private DateTimeOffset lastTick;
+    private CancellationTokenSource? _pollCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await Client.GetAllAsync();
+        sites = response.Sites;
+    }
+
+    private async Task AddSite()
+    {
+        var item = await Client.AddAsync(newSiteTitle);
+        sites = [.. sites!, item];
+        newSiteTitle = "";
+    }
+
+    private async Task ToggleSite(string title)
+    {
+        var item = await Client.ToggleAsync(title);
+        if (sites is null) return;
+        var index = Array.FindIndex(sites, s => s.Title == title);
+        if (index >= 0)
+            sites[index] = item;
+    }
+
+    public void Dispose()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+    }
+}

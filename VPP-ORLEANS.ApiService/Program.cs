@@ -1,12 +1,10 @@
-using GrainInterfaces;
-using Orleans.Configuration;
-using Orleans.Hosting;
+using VPP_ORLEANS.Contracts;
+using VPP_ORLEANS.GrainInterfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
 
 builder.UseOrleansClient(client =>
 {
@@ -24,39 +22,52 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-    app.MapOpenApi();
-
 app.MapGet("/", () => "API service is running.");
 
-app.MapGet("/schedule", async (IClusterClient cluster) =>
+app.MapGet("/site", async (IClusterClient cluster) =>
 {
-    var grain = cluster.GetGrain<IScheduleGrain>("default");
-    var tasks = await grain.GetAllTasks();
-    var lastTick = await grain.GetLastTick();
-    return new ScheduleResponse { Tasks = tasks, LastTick = lastTick };
+    var registry = cluster.GetGrain<ISiteRegistryGrain>("default");
+    var titles = await registry.GetAllTitles();
+
+    var grains = titles.Select(t => cluster.GetGrain<ISiteGrain>(t));
+    var states = await Task.WhenAll(grains.Select(g => g.Get()));
+
+    return new SiteResponse
+    {
+        Sites = states
+            .Where(s => !string.IsNullOrWhiteSpace(s.Title))
+            .Select(s => new SiteItem { Title = s.Title, IsActive = s.IsActive })
+            .ToArray()
+    };
 });
 
-app.MapPost("/schedule", async (AddTaskRequest req, IClusterClient cluster) =>
+app.MapPost("/site", async (AddSiteRequest req, IClusterClient cluster) =>
 {
-    var grain = cluster.GetGrain<IScheduleGrain>("default");
-    await grain.AddTask(req.Title);
-    var tasks = await grain.GetAllTasks();
-    var lastTick = await grain.GetLastTick();
-    return new ScheduleResponse { Tasks = tasks, LastTick = lastTick };
+    var registry = cluster.GetGrain<ISiteRegistryGrain>("default");
+    await registry.Register(req.Title);
+
+    var grain = cluster.GetGrain<ISiteGrain>(req.Title);
+    await grain.Add();
+
+    var state = await grain.Get();
+    return new SiteResponse
+    {
+        Sites = [new SiteItem { Title = state.Title, IsActive = state.IsActive }]
+    };
 });
 
-app.MapPut("/schedule/{title}/toggle", async (string title, IClusterClient cluster) =>
+app.MapPut("/site/{title}/toggle", async (string title, IClusterClient cluster) =>
 {
-    var grain = cluster.GetGrain<IScheduleGrain>("default");
-    await grain.ToggleTask(title);
-    var tasks = await grain.GetAllTasks();
-    var lastTick = await grain.GetLastTick();
-    return new ScheduleResponse { Tasks = tasks, LastTick = lastTick };
+    var grain = cluster.GetGrain<ISiteGrain>(title);
+    await grain.Toggle();
+
+    var state = await grain.Get();
+    return new SiteResponse
+    {
+        Sites = [new SiteItem { Title = state.Title, IsActive = state.IsActive }]
+    };
 });
 
 app.MapDefaultEndpoints();
 
 app.Run();
-
-record AddTaskRequest(string Title);

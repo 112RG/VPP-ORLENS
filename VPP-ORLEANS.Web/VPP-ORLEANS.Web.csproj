@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\VPP-ORLEANS.ServiceDefaults\VPP-ORLEANS.ServiceDefaults.csproj" />
     <ProjectReference Include="..\VPP-ORLEANS.GrainInterfaces\VPP-ORLEANS.GrainInterfaces.csproj" />
+    <ProjectReference Include="..\VPP-ORLEANS.Contracts\VPP-ORLEANS.Contracts.csproj" />
   </ItemGroup>
 
 </Project>
