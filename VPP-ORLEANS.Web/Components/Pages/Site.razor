@@ -1,16 +1,10 @@
 @page "/site"
 @rendermode InteractiveServer
 @inject VPP_ORLEANS.Web.SiteApiClient Client
-@implements IDisposable
 
 <PageTitle>Sites</PageTitle>
 
 <h1>Sites</h1>
-
-<p class="text-muted small">
-    Last tick: @(lastTick == default ? "--" : lastTick.ToString("HH:mm:ss"))
-    <span class="ms-2 badge bg-success">live</span>
-</p>
 
 <div class="mb-3">
     <div class="input-group">
@@ -52,8 +46,6 @@ else
 @code {
     private string newSiteTitle = "";
     private VPP_ORLEANS.Contracts.SiteItem[]? sites;
-    private DateTimeOffset lastTick;
-    private CancellationTokenSource? _pollCts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,11 +67,5 @@ else
         var index = Array.FindIndex(sites, s => s.Title == title);
         if (index >= 0)
             sites[index] = item;
-    }
-
-    public void Dispose()
-    {
-        _pollCts?.Cancel();
-        _pollCts?.Dispose();
     }
 }
