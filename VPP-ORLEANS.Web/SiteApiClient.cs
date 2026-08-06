@@ -1,4 +1,5 @@
 using VPP_ORLEANS.Contracts;
+using VPP_ORLEANS.GrainInterfaces;
 
 namespace VPP_ORLEANS.Web;
 
@@ -20,6 +21,30 @@ public class SiteApiClient(HttpClient httpClient)
         var response = await httpClient.PutAsync($"/site/{Uri.EscapeDataString(title)}/toggle", null, ct);
         response.EnsureSuccessStatusCode();
         return SingleSite(await ReadSiteResponseAsync(response, ct));
+    }
+
+    public async Task<AssetItem[]> GetAssetsAsync(string site, CancellationToken ct = default)
+        => (await httpClient.GetFromJsonAsync<AssetListResponse>($"/site/{Uri.EscapeDataString(site)}/assets", ct)
+                ?? new AssetListResponse()).Assets;
+
+    public async Task<AssetItem> AddAssetAsync(string site, AssetKind kind, string assetId, CancellationToken ct = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            $"/site/{Uri.EscapeDataString(site)}/assets",
+            new { Kind = kind, AssetId = assetId },
+            ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AssetItem>(ct)
+            ?? throw new InvalidOperationException("API returned an invalid response.");
+    }
+
+    public async Task DispatchBatteryAsync(string assetId, double desiredKw, CancellationToken ct = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            $"/assets/battery/{Uri.EscapeDataString(assetId)}/dispatch",
+            new { DesiredKw = desiredKw },
+            ct);
+        response.EnsureSuccessStatusCode();
     }
 
     private static async Task<SiteResponse> ReadSiteResponseAsync(HttpResponseMessage response, CancellationToken ct)

@@ -80,6 +80,112 @@ app.MapPut("/site/{title}/toggle", async (string title, IClusterClient cluster) 
     };
 });
 
+app.MapPost("/site/{site}/assets", async (string site, AddAssetRequest req, IClusterClient cluster) =>
+{
+    await cluster.GetGrain<ISiteGrain>(site).RegisterAsset(req.Kind, req.AssetId);
+
+    IAssetGrain asset = ResolveAsset(req.Kind, req.AssetId, cluster);
+    await asset.Initialize(site);
+
+    var status = await asset.GetStatus();
+    return ToItem(status);
+});
+
+app.MapGet("/site/{site}/assets", async (string site, IClusterClient cluster) =>
+{
+    var siteGrain = cluster.GetGrain<ISiteGrain>(site);
+    var batteryIds = await siteGrain.GetAssetIds(AssetKind.Battery);
+    var solarIds = await siteGrain.GetAssetIds(AssetKind.Solar);
+
+    var ids = batteryIds
+        .Select(id => (Kind: AssetKind.Battery, Id: id))
+        .Concat(solarIds.Select(id => (Kind: AssetKind.Solar, Id: id)))
+        .ToArray();
+
+    var statuses = await Task.WhenAll(ids.Select(k =>
+        ResolveAsset(k.Kind, k.Id, cluster).GetStatus()));
+
+    return new AssetListResponse { Assets = statuses.Select(ToItem).ToArray() };
+});
+
+app.MapGet("/assets/battery/{id}", async (string id, IClusterClient cluster) =>
+{
+    var battery = cluster.GetGrain<IBatteryGrain>(id);
+    var state = await battery.GetState();
+    var status = await battery.GetStatus();
+
+    return new BatteryInfo
+    {
+        AssetId = id,
+        SiteId = state.SiteId,
+        SocPercent = state.SocPercent,
+        CurrentKw = state.CurrentKw,
+        DesiredKw = state.DesiredKw,
+        CapacityKwh = state.CapacityKwh,
+        ReserveFloorPercent = state.ReserveFloorPercent,
+        AvailableCapacityKwh = state.GetAvailableCapacityKwh(),
+        IsOnline = status.IsOnline,
+        LastTelemetryUtc = status.LastTelemetryUtc
+    };
+});
+
+app.MapGet("/assets/solar/{id}", async (string id, IClusterClient cluster) =>
+{
+    var solar = cluster.GetGrain<ISolarGrain>(id);
+    var state = await solar.GetState();
+    var status = await solar.GetStatus();
+
+    return new SolarInfo
+    {
+        AssetId = id,
+        SiteId = state.SiteId,
+        GenerationKw = state.GenerationKw,
+        IsOnline = status.IsOnline,
+        LastTelemetryUtc = status.LastTelemetryUtc
+    };
+});
+
+app.MapPost("/assets/battery/{id}/dispatch", async (string id, DispatchBatteryRequest req, IClusterClient cluster) =>
+{
+    var battery = cluster.GetGrain<IBatteryGrain>(id);
+    await battery.SetDesiredPowerKw(req.DesiredKw);
+
+    var state = await battery.GetState();
+    var status = await battery.GetStatus();
+
+    return new BatteryInfo
+    {
+        AssetId = id,
+        SiteId = state.SiteId,
+        SocPercent = state.SocPercent,
+        CurrentKw = state.CurrentKw,
+        DesiredKw = state.DesiredKw,
+        CapacityKwh = state.CapacityKwh,
+        ReserveFloorPercent = state.ReserveFloorPercent,
+        AvailableCapacityKwh = state.GetAvailableCapacityKwh(),
+        IsOnline = status.IsOnline,
+        LastTelemetryUtc = status.LastTelemetryUtc
+    };
+});
+
 app.MapDefaultEndpoints();
+
+static IAssetGrain ResolveAsset(AssetKind kind, string assetId, IClusterClient cluster) =>
+    kind switch
+    {
+        AssetKind.Battery => cluster.GetGrain<IBatteryGrain>(assetId),
+        AssetKind.Solar => cluster.GetGrain<ISolarGrain>(assetId),
+        _ => throw new InvalidOperationException($"Unsupported asset kind '{kind}'")
+    };
+
+static AssetItem ToItem(AssetStatus status) => new()
+{
+    AssetId = status.AssetId,
+    Kind = status.Kind,
+    SiteId = status.SiteId,
+    CurrentKw = status.CurrentKw,
+    IsOnline = status.IsOnline,
+    LastTelemetryUtc = status.LastTelemetryUtc
+};
 
 app.Run();

@@ -5,6 +5,8 @@ public interface ISiteGrain : IGrainWithStringKey
     Task Add();
     Task Toggle();
     Task<SiteState> Get();
+    Task RegisterAsset(AssetKind kind, string assetId);
+    Task<string[]> GetAssetIds(AssetKind kind);
 }
 
 public interface ISiteRegistryGrain : IGrainWithIntegerKey
@@ -25,6 +27,24 @@ public record SiteState
 {
     [Id(0)] public string Title { get; init; } = "";
     [Id(1)] public bool IsActive { get; init; }
+    [Id(2)] public string[] BatteryIds { get; init; } = [];
+    [Id(3)] public string[] SolarIds { get; init; } = [];
 
     public SiteState Toggle() => this with { IsActive = !IsActive };
+
+    public string[] AssetIds(AssetKind kind) =>
+        kind switch
+        {
+            AssetKind.Battery => BatteryIds,
+            AssetKind.Solar => SolarIds,
+            _ => []
+        };
+
+    public SiteState RegisterAsset(AssetKind kind, string assetId) =>
+        kind switch
+        {
+            AssetKind.Battery when !BatteryIds.Contains(assetId) => this with { BatteryIds = [.. BatteryIds, assetId] },
+            AssetKind.Solar when !SolarIds.Contains(assetId) => this with { SolarIds = [.. SolarIds, assetId] },
+            _ => this
+        };
 }

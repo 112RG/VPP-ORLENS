@@ -4,10 +4,14 @@ using Orleans.Configuration;
 using Orleans.Hosting;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using VPP_ORLEANS.GrainInterfaces;
+using VPP_ORLEANS.Grains;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
+builder.Services.AddSingleton<IProtocolAdapter, SimulatedProtocolAdapter>();
+builder.Services.AddOptions<AssetOptions>().BindConfiguration(AssetOptions.SectionName);
 
 var connectionString = builder.Configuration.GetConnectionString("orleans-db")
     ?? throw new InvalidOperationException("Connection string 'orleans-db' not found");

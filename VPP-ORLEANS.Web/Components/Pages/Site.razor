@@ -1,6 +1,7 @@
 @page "/site"
 @rendermode InteractiveServer
 @inject VPP_ORLEANS.Web.SiteApiClient Client
+@using VPP_ORLEANS.GrainInterfaces
 
 <PageTitle>Sites</PageTitle>
 
@@ -29,7 +30,7 @@ else
     <ul class="list-group">
         @foreach (var site in sites)
         {
-            <li class="list-group-item d-flex justify-content-between align-items-center">
+            <li class="list-group-item">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox"
                            checked="@site.IsActive"
@@ -37,6 +38,52 @@ else
                     <label class="form-check-label @(site.IsActive ? "text-decoration-line-through text-muted" : "")">
                         @site.Title
                     </label>
+                </div>
+
+                <div class="ms-4 mt-1">
+                    @if (assetsBySite.TryGetValue(site.Title, out var assets) && assets.Length > 0)
+                    {
+                        <ul class="list-unstyled small mb-1">
+                            @foreach (var asset in assets)
+                            {
+                                <li class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge @(asset.IsOnline ? "bg-success" : "bg-secondary")">
+                                        @(asset.Kind == AssetKind.Battery ? "BATTERY" : "SOLAR")
+                                    </span>
+                                    <span>@asset.AssetId</span>
+                                    <span class="text-muted">@asset.CurrentKw.ToString("0.0") kW</span>
+                                    <span class="text-muted">@(asset.IsOnline ? "online" : "offline")</span>
+
+                                    @if (asset.Kind == AssetKind.Battery)
+                                    {
+                                        <input class="form-control form-control-sm d-inline-block" style="width: 5rem"
+                                               @bind="dispatchText[asset.AssetId]" placeholder="kW" />
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                @onclick="() => Dispatch(asset.AssetId, site.Title)">
+                                            Dispatch
+                                        </button>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <span class="text-muted small">No assets</span>
+                    }
+
+                    <div class="input-group input-group-sm" style="max-width: 26rem">
+                        <input class="form-control" placeholder="asset id"
+                               @bind="newAssetIdBySite[site.Title]" />
+                        <button class="btn btn-outline-success"
+                                @onclick="() => AddAsset(site.Title, AssetKind.Battery)">
+                            +Battery
+                        </button>
+                        <button class="btn btn-outline-info"
+                                @onclick="() => AddAsset(site.Title, AssetKind.Solar)">
+                            +Solar
+                        </button>
+                    </div>
                 </div>
             </li>
         }
@@ -65,6 +112,10 @@ else
     private int total;
     private int totalPages = 1;
 
+    private Dictionary<string, Contracts.AssetItem[]> assetsBySite = new();
+    private Dictionary<string, string> newAssetIdBySite = new();
+    private Dictionary<string, string> dispatchText = new();
+
     protected override Task OnInitializedAsync() => LoadPageAsync();
 
     private async Task LoadPageAsync()
@@ -73,6 +124,16 @@ else
         sites = response.Sites;
         total = response.Total;
         totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
+        await LoadAssetsAsync();
+    }
+
+    private async Task LoadAssetsAsync()
+    {
+        var current = sites ?? [];
+        var results = await Task.WhenAll(current.Select(s => Client.GetAssetsAsync(s.Title)));
+        assetsBySite = current
+            .Zip(results, (s, assets) => (s.Title, assets))
+            .ToDictionary(x => x.Title, x => x.assets);
     }
 
     private async Task AddSite()
@@ -90,6 +151,34 @@ else
         var index = Array.FindIndex(sites, s => s.Title == title);
         if (index >= 0)
             sites[index] = item;
+    }
+
+    private async Task AddAsset(string siteTitle, AssetKind kind)
+    {
+        var assetId = newAssetIdBySite.TryGetValue(siteTitle, out var value) ? value.Trim() : "";
+        if (string.IsNullOrWhiteSpace(assetId))
+            return;
+
+        var item = await Client.AddAssetAsync(siteTitle, kind, assetId);
+
+        if (assetsBySite.TryGetValue(siteTitle, out var list))
+            assetsBySite[siteTitle] = [.. list, item];
+        else
+            assetsBySite[siteTitle] = [item];
+
+        newAssetIdBySite[siteTitle] = "";
+    }
+
+    private async Task Dispatch(string assetId, string siteTitle)
+    {
+        if (!double.TryParse(dispatchText.GetValueOrDefault(assetId), out var kw))
+            return;
+
+        await Client.DispatchBatteryAsync(assetId, kw);
+        dispatchText[assetId] = kw.ToString("0.0");
+
+        var assets = await Client.GetAssetsAsync(siteTitle);
+        assetsBySite[siteTitle] = assets;
     }
 
     private async Task PrevPage()

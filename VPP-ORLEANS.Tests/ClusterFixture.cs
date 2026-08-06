@@ -1,5 +1,9 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Orleans.Hosting;
 using Orleans.TestingHost;
+using VPP_ORLEANS.GrainInterfaces;
+using VPP_ORLEANS.Grains;
 using Xunit;
 
 namespace VPP_ORLEANS.Tests;
@@ -10,7 +14,14 @@ public sealed class ClusterCollection : ICollectionFixture<ClusterFixture>;
 public class TestSiloConfigurator : ISiloConfigurator
 {
     public void Configure(ISiloBuilder siloBuilder)
-        => siloBuilder.AddMemoryGrainStorage("AdoNet");
+    {
+        siloBuilder.AddMemoryGrainStorage("AdoNet");
+        siloBuilder.ConfigureServices(services =>
+        {
+            services.AddSingleton<IProtocolAdapter, SimulatedProtocolAdapter>();
+            services.AddOptions<AssetOptions>();
+        });
+    }
 }
 
 public sealed class ClusterFixture : IDisposable

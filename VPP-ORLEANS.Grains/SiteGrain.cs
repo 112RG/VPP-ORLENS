@@ -22,6 +22,19 @@ public class SiteGrain : Grain, ISiteGrain
 
     public Task<SiteState> Get() => Task.FromResult(_state.State);
 
+    public async Task RegisterAsset(AssetKind kind, string assetId)
+    {
+        var next = _state.State.RegisterAsset(kind, assetId);
+        if (next != _state.State)
+        {
+            _state.State = next;
+            await _state.WriteStateAsync();
+        }
+    }
+
+    public Task<string[]> GetAssetIds(AssetKind kind) =>
+        Task.FromResult(_state.State.AssetIds(kind));
+
     public async Task Toggle()
     {
         _state.State = _state.State.Toggle();
