@@ -24,4 +24,9 @@
     <ProjectReference Include="..\VPP-ORLEANS.Grains\VPP-ORLEANS.Grains.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="sql\Clustering.sql" LogicalName="VPP_ORLEANS.Silo.sql.Clustering.sql" />
+    <EmbeddedResource Include="sql\Storage.sql" LogicalName="VPP_ORLEANS.Silo.sql.Storage.sql" />
+  </ItemGroup>
+
 </Project>
