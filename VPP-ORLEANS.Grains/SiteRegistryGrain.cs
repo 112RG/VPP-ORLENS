@@ -20,6 +20,20 @@ public class SiteRegistryGrain : Grain, ISiteRegistryGrain
         }
     }
 
-    public Task<string[]> GetAllTitles() =>
-        Task.FromResult(_state.State.ToArray());
+    public Task<SiteTitlePage> GetTitles(int skip, int take)
+    {
+        var titles = _state.State;
+        int total = titles.Count;
+
+        if (skip >= total || take <= 0)
+            return Task.FromResult(new SiteTitlePage { Total = total });
+
+        int count = Math.Min(take, total - skip);
+
+        return Task.FromResult(new SiteTitlePage
+        {
+            Titles = titles.Skip(skip).Take(count).ToArray(),
+            Total = total
+        });
+    }
 }

@@ -10,51 +10,74 @@ public class SiteRegistryGrainTests
 
     public SiteRegistryGrainTests(ClusterFixture fixture) => _fixture = fixture;
 
-    private ISiteRegistryGrain Registry() =>
-        _fixture.Cluster.Client.GetGrain<ISiteRegistryGrain>(Guid.NewGuid().ToString("N"));
+    private ISiteRegistryGrain Registry(int shard) =>
+        _fixture.Cluster.Client.GetGrain<ISiteRegistryGrain>(shard);
 
     [Fact]
-    public async Task GetAllTitles_EmptyByDefault()
+    public async Task GetTitles_EmptyByDefault()
     {
-        var titles = await Registry().GetAllTitles();
+        var page = await Registry(1000).GetTitles(0, 50);
 
-        Assert.Empty(titles);
+        Assert.Empty(page.Titles);
+        Assert.Equal(0, page.Total);
     }
 
     [Fact]
     public async Task Register_AddsTitle()
     {
-        var registry = Registry();
+        var registry = Registry(1001);
 
-        await registry.Register("solar-d4");
+        await registry.Register("site-a");
 
-        Assert.Equal(["solar-d4"], await registry.GetAllTitles());
+        var page = await registry.GetTitles(0, 50);
+        Assert.Equal(["site-a"], page.Titles);
+        Assert.Equal(1, page.Total);
     }
 
     [Fact]
     public async Task Register_SameTitle_DoesNotDuplicate()
     {
-        var registry = Registry();
+        var registry = Registry(1002);
 
-        await registry.Register("solar-e5");
-        await registry.Register("solar-e5");
+        await registry.Register("site-b");
+        await registry.Register("site-b");
 
-        Assert.Equal(["solar-e5"], await registry.GetAllTitles());
+        var page = await registry.GetTitles(0, 50);
+        Assert.Equal(["site-b"], page.Titles);
+        Assert.Equal(1, page.Total);
     }
 
     [Fact]
-    public async Task Register_MultipleTitles()
+    public async Task Register_ShardsIsolate()
     {
-        var registry = Registry();
+        await Registry(1003).Register("site-c");
 
-        await registry.Register("solar-f6");
-        await registry.Register("battery-g7");
-        await registry.Register("ev-h8");
+        Assert.Equal(new[] { "site-c" }, (await Registry(1003).GetTitles(0, 50)).Titles);
+        Assert.Empty((await Registry(1004).GetTitles(0, 50)).Titles);
+    }
 
-        var titles = await registry.GetAllTitles();
+    [Fact]
+    public async Task GetTitles_ReturnsSliceOfShard()
+    {
+        var registry = Registry(1005);
+        foreach (var title in new[] { "s1", "s2", "s3", "s4", "s5" })
+            await registry.Register(title);
 
-        Assert.Equal(
-            new[] { "solar-f6", "battery-g7", "ev-h8" }.OrderBy(t => t).ToArray(),
-            titles.OrderBy(t => t).ToArray());
+        var page = await registry.GetTitles(1, 3);
+
+        Assert.Equal(new[] { "s2", "s3", "s4" }, page.Titles);
+        Assert.Equal(5, page.Total);
+    }
+
+    [Fact]
+    public async Task GetTitles_SkipsBeyondEnd_ReturnsEmpty()
+    {
+        var registry = Registry(1006);
+        await registry.Register("s1");
+
+        var page = await registry.GetTitles(5, 3);
+
+        Assert.Empty(page.Titles);
+        Assert.Equal(1, page.Total);
     }
 }

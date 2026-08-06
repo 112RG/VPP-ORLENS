@@ -7,10 +7,17 @@ public interface ISiteGrain : IGrainWithStringKey
     Task<SiteState> Get();
 }
 
-public interface ISiteRegistryGrain : IGrainWithStringKey
+public interface ISiteRegistryGrain : IGrainWithIntegerKey
 {
     Task Register(string title);
-    Task<string[]> GetAllTitles();
+    Task<SiteTitlePage> GetTitles(int skip, int take);
+}
+
+[GenerateSerializer]
+public record SiteTitlePage
+{
+    [Id(0)] public string[] Titles { get; init; } = [];
+    [Id(1)] public int Total { get; init; }
 }
 
 [GenerateSerializer]

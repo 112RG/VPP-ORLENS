@@ -4,8 +4,9 @@ namespace VPP_ORLEANS.Web;
 
 public class SiteApiClient(HttpClient httpClient)
 {
-    public async Task<SiteResponse> GetAllAsync(CancellationToken ct = default)
-        => await httpClient.GetFromJsonAsync<SiteResponse>("/site", ct) ?? new SiteResponse();
+    public async Task<SiteResponse> GetSitesAsync(int page, int pageSize, CancellationToken ct = default)
+        => await httpClient.GetFromJsonAsync<SiteResponse>($"/site?page={page}&pageSize={pageSize}", ct)
+            ?? new SiteResponse();
 
     public async Task<SiteItem> AddAsync(string title, CancellationToken ct = default)
     {
