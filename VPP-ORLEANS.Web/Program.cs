@@ -1,3 +1,4 @@
+using Microsoft.FluentUI.AspNetCore.Components;
 using VPP_ORLEANS.Web;
 using VPP_ORLEANS.Web.Components;
 
@@ -10,6 +11,8 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddHttpClient<SiteApiClient>(client =>
     client.BaseAddress = new("https+http://apiservice"));
+
+builder.Services.AddFluentUIComponents();
 
 var app = builder.Build();
 

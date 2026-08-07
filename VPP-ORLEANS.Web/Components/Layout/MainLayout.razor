@@ -1,23 +1,30 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
+<FluentLayout>
+    <FluentHeader>
+        <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="12">
+            <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Filled.Size24.Flash())" />
+            <span style="font-weight: 600;">VPP-ORLEANS</span>
+        </FluentStack>
+    </FluentHeader>
+    <FluentStack Orientation="Orientation.Horizontal" Style="width: 100%;">
         <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+        <FluentBodyContent>
+            <article class="content px-5">
+                @Body
+            </article>
+        </FluentBodyContent>
+    </FluentStack>
+</FluentLayout>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
+
+<FluentToastProvider />
+<FluentDialogProvider />
+<FluentTooltipProvider />
+<FluentMessageBarProvider />
+<FluentMenuProvider />

@@ -1,9 +1,8 @@
-﻿using System.Reflection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Orleans.Configuration;
-using Orleans.Hosting;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
+using System.Reflection;
 using VPP_ORLEANS.GrainInterfaces;
 using VPP_ORLEANS.Grains;
 

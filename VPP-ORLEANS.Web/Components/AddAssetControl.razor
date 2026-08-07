@@ -1,0 +1,28 @@
+@* Add-asset id input for a site. Binds to a local field so Fluent's FieldIdentifier
+   validation can evaluate it (dictionary indexers cannot be bound). *@
+@using VPP_ORLEANS.GrainInterfaces
+<FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="6">
+    <FluentTextField @bind-Value="@assetId" Placeholder="asset id" Style="width: 12rem" />
+    <FluentButton Appearance="@Appearance.Stealth" OnClick="@(() => Add(AssetKind.Battery))">
+        +Battery
+    </FluentButton>
+    <FluentButton Appearance="@Appearance.Stealth" OnClick="@(() => Add(AssetKind.Solar))">
+        +Solar
+    </FluentButton>
+</FluentStack>
+
+@code {
+    [Parameter] public EventCallback<(AssetKind Kind, string AssetId)> OnAdd { get; set; }
+
+    private string assetId = "";
+
+    private async Task Add(AssetKind kind)
+    {
+        var id = assetId.Trim();
+        if (string.IsNullOrWhiteSpace(id))
+            return;
+
+        await OnAdd.InvokeAsync((kind, id));
+        assetId = "";
+    }
+}

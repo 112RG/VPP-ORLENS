@@ -2,6 +2,21 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<FluentCard>
+    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Top" Gap="16">
+        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Filled.Size32.Flash())"
+                    Style="margin-top: 2px; flex-shrink: 0;" />
+        <FluentStack Orientation="Orientation.Vertical" Gap="4">
+            <h2 style="margin: 0; line-height: 1.2;">VPP-ORLEANS</h2>
+            <p style="margin: 0;">
+                Virtual Power Plant management built on Akka.NET and Orleans.
+            </p>
+        </FluentStack>
+    </FluentStack>
+</FluentCard>
 
-Welcome to your new app.
+<FluentStack Orientation="Orientation.Horizontal" Gap="12" Style="margin-top: 1rem">
+    <FluentAnchor Href="/site" Appearance="Appearance.Accent">
+        Manage Sites
+    </FluentAnchor>
+</FluentStack>

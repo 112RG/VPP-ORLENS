@@ -7,101 +7,93 @@
 
 <h1>Sites</h1>
 
-<div class="mb-3">
-    <div class="input-group">
-        <input @bind="newSiteTitle" @bind:event="oninput"
-               class="form-control" placeholder="Add a site..." />
-        <button class="btn btn-primary" @onclick="AddSite" disabled="@(string.IsNullOrWhiteSpace(newSiteTitle))">
-            Add
-        </button>
-    </div>
-</div>
+<FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8" Style="margin-bottom: 1rem; max-width: 34rem">
+    <FluentTextField @bind-Value="newSiteTitle" Placeholder="Add a site..." Style="flex: 1" />
+    <FluentButton Appearance="@Appearance.Accent"
+                  OnClick="AddSite"
+                  Disabled="@(string.IsNullOrWhiteSpace(newSiteTitle))">
+        Add
+    </FluentButton>
+</FluentStack>
+
+@if (!string.IsNullOrEmpty(loadError))
+{
+    <p style="color: var(--error); margin-bottom: 1rem;">@loadError</p>
+}
 
 @if (sites is null)
 {
+    <FluentProgress Progress="null" />
     <p>Loading...</p>
 }
 else if (sites.Length == 0)
 {
-    <p class="text-muted">No sites yet.</p>
+    <p style="color: var(--neutral-foreground-rest)">No sites yet.</p>
 }
 else
 {
-    <ul class="list-group">
+    <FluentStack Orientation="Orientation.Vertical" Gap="12">
         @foreach (var site in sites)
         {
-            <li class="list-group-item">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox"
-                           checked="@site.IsActive"
-                           @onchange="() => ToggleSite(site.Title)" />
-                    <label class="form-check-label @(site.IsActive ? "text-decoration-line-through text-muted" : "")">
-                        @site.Title
-                    </label>
-                </div>
+            <FluentCard>
+                <FluentStack Orientation="Orientation.Vertical" Gap="12">
+                    <FluentCheckbox Label="@site.Title"
+                                    Value="@site.IsActive"
+                                    ValueChanged="(bool v) => ToggleSite(site.Title)" />
 
-                <div class="ms-4 mt-1">
-                    @if (assetsBySite.TryGetValue(site.Title, out var assets) && assets.Length > 0)
-                    {
-                        <ul class="list-unstyled small mb-1">
-                            @foreach (var asset in assets)
-                            {
-                                <li class="d-flex align-items-center gap-2 mb-1">
-                                    <span class="badge @(asset.IsOnline ? "bg-success" : "bg-secondary")">
-                                        @(asset.Kind == AssetKind.Battery ? "BATTERY" : "SOLAR")
-                                    </span>
-                                    <span>@asset.AssetId</span>
-                                    <span class="text-muted">@asset.CurrentKw.ToString("0.0") kW</span>
-                                    <span class="text-muted">@(asset.IsOnline ? "online" : "offline")</span>
+                    <div style="margin-left: 1.5rem">
+                        @if (assetsBySite.TryGetValue(site.Title, out var assets) && assets.Length > 0)
+                        {
+                            <FluentGrid Spacing="2">
+                                @foreach (var asset in assets)
+                                {
+                                    <FluentGridItem xs="6" md="4" lg="3">
+                                        <FluentCard>
+                                            <FluentStack Orientation="Orientation.Vertical" Gap="6">
+                                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8" Style="flex-wrap: wrap;">
+                                                    <FluentBadge Appearance="@(asset.Kind == AssetKind.Battery ? Appearance.Accent : Appearance.Lightweight)">
+                                                        @(asset.Kind == AssetKind.Battery ? "BATTERY" : "SOLAR")
+                                                    </FluentBadge>
+                                                    <strong style="word-break: break-word;">@asset.AssetId</strong>
+                                                </FluentStack>
+                                                <span style="color: var(--neutral-foreground-rest)">
+                                                    @asset.CurrentKw.ToString("0.0") kW &#183; @(asset.IsOnline ? "online" : "offline")
+                                                </span>
 
-                                    @if (asset.Kind == AssetKind.Battery)
-                                    {
-                                        <input class="form-control form-control-sm d-inline-block" style="width: 5rem"
-                                               @bind="dispatchText[asset.AssetId]" placeholder="kW" />
-                                        <button class="btn btn-sm btn-outline-primary"
-                                                @onclick="() => Dispatch(asset.AssetId, site.Title)">
-                                            Dispatch
-                                        </button>
-                                    }
-                                </li>
-                            }
-                        </ul>
-                    }
-                    else
-                    {
-                        <span class="text-muted small">No assets</span>
-                    }
+                                                @if (asset.Kind == AssetKind.Battery)
+                                                {
+                                                    <DispatchControl DispatchValue="@(asset.CurrentKw)"
+                                                                     OnDispatch="@(kw => Dispatch(asset.AssetId, site.Title, kw))" />
+                                                }
+                                            </FluentStack>
+                                        </FluentCard>
+                                    </FluentGridItem>
+                                }
+                            </FluentGrid>
+                        }
+                        else
+                        {
+                            <span style="color: var(--neutral-foreground-rest)">No assets</span>
+                        }
 
-                    <div class="input-group input-group-sm" style="max-width: 26rem">
-                        <input class="form-control" placeholder="asset id"
-                               @bind="newAssetIdBySite[site.Title]" />
-                        <button class="btn btn-outline-success"
-                                @onclick="() => AddAsset(site.Title, AssetKind.Battery)">
-                            +Battery
-                        </button>
-                        <button class="btn btn-outline-info"
-                                @onclick="() => AddAsset(site.Title, AssetKind.Solar)">
-                            +Solar
-                        </button>
+                        <AddAssetControl OnAdd="@(data => AddAsset(site.Title, data.Kind, data.AssetId))" />
                     </div>
-                </div>
-            </li>
+                </FluentStack>
+            </FluentCard>
         }
-    </ul>
+    </FluentStack>
 }
 
 @if (sites is not null)
 {
-    <nav class="mt-3 d-flex align-items-center justify-content-between">
-        <span class="text-muted small">
+    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8" Style="margin-top: 1rem">
+        <span style="color: var(--neutral-foreground-rest)">
             @{ var first = sites.Length == 0 ? 0 : (page - 1) * PageSize + 1; }
             @first-@((page - 1) * PageSize + sites.Length) of @total
         </span>
-        <div class="btn-group">
-            <button class="btn btn-sm btn-outline-secondary" disabled="@(page <= 1)" @onclick="PrevPage">Prev</button>
-            <button class="btn btn-sm btn-outline-secondary" disabled="@(page >= totalPages)" @onclick="NextPage">Next</button>
-        </div>
-    </nav>
+        <FluentButton Appearance="@Appearance.Stealth" Disabled="@(page <= 1)" OnClick="PrevPage">Prev</FluentButton>
+        <FluentButton Appearance="@Appearance.Stealth" Disabled="@(page >= totalPages)" OnClick="NextPage">Next</FluentButton>
+    </FluentStack>
 }
 
 @code {
@@ -111,20 +103,28 @@ else
     private int page = 1;
     private int total;
     private int totalPages = 1;
+    private string? loadError;
 
     private Dictionary<string, Contracts.AssetItem[]> assetsBySite = new();
-    private Dictionary<string, string> newAssetIdBySite = new();
-    private Dictionary<string, string> dispatchText = new();
 
     protected override Task OnInitializedAsync() => LoadPageAsync();
 
     private async Task LoadPageAsync()
     {
-        var response = await Client.GetSitesAsync(page, PageSize);
-        sites = response.Sites;
-        total = response.Total;
-        totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
-        await LoadAssetsAsync();
+        try
+        {
+            var response = await Client.GetSitesAsync(page, PageSize);
+            sites = response.Sites;
+            total = response.Total;
+            totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
+            await LoadAssetsAsync();
+            loadError = null;
+        }
+        catch (Exception ex)
+        {
+            sites = [];
+            loadError = $"Unable to load sites: {ex.Message}";
+        }
     }
 
     private async Task LoadAssetsAsync()
@@ -138,10 +138,17 @@ else
 
     private async Task AddSite()
     {
-        await Client.AddAsync(newSiteTitle);
-        newSiteTitle = "";
-        page = 1;
-        await LoadPageAsync();
+        try
+        {
+            await Client.AddAsync(newSiteTitle);
+            newSiteTitle = "";
+            page = 1;
+            await LoadPageAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Unable to add site: {ex.Message}";
+        }
     }
 
     private async Task ToggleSite(string title)
@@ -153,29 +160,22 @@ else
             sites[index] = item;
     }
 
-    private async Task AddAsset(string siteTitle, AssetKind kind)
+    private async Task AddAsset(string siteTitle, AssetKind kind, string assetId)
     {
-        var assetId = newAssetIdBySite.TryGetValue(siteTitle, out var value) ? value.Trim() : "";
-        if (string.IsNullOrWhiteSpace(assetId))
-            return;
-
         var item = await Client.AddAssetAsync(siteTitle, kind, assetId);
 
         if (assetsBySite.TryGetValue(siteTitle, out var list))
             assetsBySite[siteTitle] = [.. list, item];
         else
             assetsBySite[siteTitle] = [item];
-
-        newAssetIdBySite[siteTitle] = "";
     }
 
-    private async Task Dispatch(string assetId, string siteTitle)
+    private async Task Dispatch(string assetId, string siteTitle, double kw)
     {
-        if (!double.TryParse(dispatchText.GetValueOrDefault(assetId), out var kw))
+        if (kw <= 0)
             return;
 
         await Client.DispatchBatteryAsync(assetId, kw);
-        dispatchText[assetId] = kw.ToString("0.0");
 
         var assets = await Client.GetAssetsAsync(siteTitle);
         assetsBySite[siteTitle] = assets;

@@ -1,0 +1,29 @@
+@* Dispatch kw input for a single battery asset. Binds to a local field so Fluent's
+   FieldIdentifier validation can evaluate it (dictionary indexers cannot be bound). *@
+<FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8"
+             Style="width: 100%; flex-wrap: wrap;">
+    <FluentNumberField @bind-Value="@value" Style="flex: 1 1 auto; min-width: 4rem;" />
+    <FluentButton Appearance="@Appearance.Outline" OnClick="Submit" Style="flex-shrink: 0;">
+        Dispatch
+    </FluentButton>
+</FluentStack>
+
+@code {
+    [Parameter] public double DispatchValue { get; set; }
+    [Parameter] public EventCallback<double> OnDispatch { get; set; }
+
+    private double value;
+
+    protected override void OnParametersSet()
+    {
+        if (value == 0 && DispatchValue != 0)
+            value = DispatchValue;
+    }
+
+    private async Task Submit()
+    {
+        if (value <= 0)
+            return;
+        await OnDispatch.InvokeAsync(value);
+    }
+}
