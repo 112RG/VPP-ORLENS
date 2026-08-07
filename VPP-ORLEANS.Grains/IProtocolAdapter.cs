@@ -6,6 +6,7 @@ public interface IProtocolAdapter
     Task<BatteryHardware?> ReadBatteryAsync(string assetId);
     Task<SolarHardware?> ReadSolarAsync(string assetId);
     Task SendBatteryCommandAsync(string assetId, double desiredKw);
+    Task SeedBatteryAsync(string assetId, double capacityKwh, double socPercent);
 }
 
 public record BatteryHardware(double SocPercent, double ActualKw);

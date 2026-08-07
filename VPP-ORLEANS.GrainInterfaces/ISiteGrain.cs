@@ -7,11 +7,14 @@ public interface ISiteGrain : IGrainWithStringKey
     Task<SiteState> Get();
     Task RegisterAsset(AssetKind kind, string assetId);
     Task<string[]> GetAssetIds(AssetKind kind);
+    Task RemoveAsset(AssetKind kind, string assetId);
+    Task Delete();
 }
 
 public interface ISiteRegistryGrain : IGrainWithIntegerKey
 {
     Task Register(string title);
+    Task Remove(string title);
     Task<SiteTitlePage> GetTitles(int skip, int take);
 }
 
@@ -45,6 +48,14 @@ public record SiteState
         {
             AssetKind.Battery when !BatteryIds.Contains(assetId) => this with { BatteryIds = [.. BatteryIds, assetId] },
             AssetKind.Solar when !SolarIds.Contains(assetId) => this with { SolarIds = [.. SolarIds, assetId] },
+            _ => this
+        };
+
+    public SiteState RemoveAsset(AssetKind kind, string assetId) =>
+        kind switch
+        {
+            AssetKind.Battery => this with { BatteryIds = BatteryIds.Where(id => id != assetId).ToArray() },
+            AssetKind.Solar => this with { SolarIds = SolarIds.Where(id => id != assetId).ToArray() },
             _ => this
         };
 }

@@ -1,0 +1,24 @@
+@using Microsoft.FluentUI.AspNetCore.Components
+@implements IDialogContentComponent
+
+@if (Content != null)
+{
+    <p style="margin: 0;">@Content.Message</p>
+}
+
+<FluentStack Orientation="Orientation.Horizontal" JustifyContent="FlexEnd" Gap="8" Style="margin-top: 1rem; width: 100%;">
+    <FluentButton Appearance="@Appearance.Neutral" OnClick="Cancel">Cancel</FluentButton>
+    <FluentButton Appearance="@Appearance.Accent" OnClick="Confirm">Confirm</FluentButton>
+</FluentStack>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+
+    [Parameter]
+    public ConfirmRequest? Content { get; set; }
+
+    private Task Cancel() => Dialog.CloseAsync(false);
+
+    private Task Confirm() => Dialog.CloseAsync(true);
+}

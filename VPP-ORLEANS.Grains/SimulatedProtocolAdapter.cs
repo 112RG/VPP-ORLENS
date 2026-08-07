@@ -9,16 +9,13 @@ public sealed class SimulatedProtocolAdapter : IProtocolAdapter
 
     private readonly ConcurrentDictionary<string, BatterySim> _batteries = new();
     private readonly ConcurrentDictionary<string, SolarSim> _solar = new();
-    private readonly double _capacityKwh;
-
-    public SimulatedProtocolAdapter(double capacityKwh = DefaultCapacityKwh) => _capacityKwh = capacityKwh;
 
     public string Name => "Simulated";
 
     public Task<BatteryHardware?> ReadBatteryAsync(string assetId)
     {
         var sim = _batteries.GetOrAdd(assetId, static _ => new BatterySim());
-        sim.Step(_capacityKwh);
+        sim.Step();
         return Task.FromResult<BatteryHardware?>(new BatteryHardware(sim.Soc, sim.ActualKw));
     }
 
@@ -35,21 +32,30 @@ public sealed class SimulatedProtocolAdapter : IProtocolAdapter
         return Task.CompletedTask;
     }
 
+    public Task SeedBatteryAsync(string assetId, double capacityKwh, double socPercent)
+    {
+        var sim = _batteries.GetOrAdd(assetId, static _ => new BatterySim());
+        sim.CapacityKwh = capacityKwh;
+        sim.Soc = socPercent;
+        return Task.CompletedTask;
+    }
+
     private sealed class BatterySim
     {
+        public double CapacityKwh = DefaultCapacityKwh;
         public double Soc = 50;
         public double CommandKw;
         public double ActualKw;
 
-        public void Step(double capacityKwh)
+        public void Step()
         {
             ActualKw = CommandKw;
 
             double energyKwh = Math.Abs(CommandKw) * TimestepHours;
             if (CommandKw > 0.001)
-                Soc = Math.Max(5, Soc - energyKwh / capacityKwh * 100);
+                Soc = Math.Max(5, Soc - energyKwh / CapacityKwh * 100);
             else if (CommandKw < -0.001)
-                Soc = Math.Min(100, Soc + energyKwh / capacityKwh * 100);
+                Soc = Math.Min(100, Soc + energyKwh / CapacityKwh * 100);
         }
     }
 

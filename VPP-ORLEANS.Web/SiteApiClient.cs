@@ -23,9 +23,26 @@ public class SiteApiClient(HttpClient httpClient)
         return SingleSite(await ReadSiteResponseAsync(response, ct));
     }
 
+    public async Task DeleteSiteAsync(string title, CancellationToken ct = default)
+    {
+        var response = await httpClient.DeleteAsync($"/site/{Uri.EscapeDataString(title)}", ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task RemoveAssetAsync(string site, AssetKind kind, string assetId, CancellationToken ct = default)
+    {
+        var response = await httpClient.DeleteAsync(
+            $"/site/{Uri.EscapeDataString(site)}/assets/{kind}/{Uri.EscapeDataString(assetId)}", ct);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task<AssetItem[]> GetAssetsAsync(string site, CancellationToken ct = default)
         => (await httpClient.GetFromJsonAsync<AssetListResponse>($"/site/{Uri.EscapeDataString(site)}/assets", ct)
                 ?? new AssetListResponse()).Assets;
+
+    public async Task<BatteryInfo> GetBatteryAsync(string assetId, CancellationToken ct = default)
+        => await httpClient.GetFromJsonAsync<BatteryInfo>($"/assets/battery/{Uri.EscapeDataString(assetId)}", ct)
+            ?? throw new InvalidOperationException("API returned an invalid response.");
 
     public async Task<AssetItem> AddAssetAsync(string site, AssetKind kind, string assetId, CancellationToken ct = default)
     {

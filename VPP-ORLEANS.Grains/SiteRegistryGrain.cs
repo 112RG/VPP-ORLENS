@@ -20,6 +20,12 @@ public class SiteRegistryGrain : Grain, ISiteRegistryGrain
         }
     }
 
+    public async Task Remove(string title)
+    {
+        if (_state.State.Remove(title))
+            await _state.WriteStateAsync();
+    }
+
     public Task<SiteTitlePage> GetTitles(int skip, int take)
     {
         var titles = _state.State;

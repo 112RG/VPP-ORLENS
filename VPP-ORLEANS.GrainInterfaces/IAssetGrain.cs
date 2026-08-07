@@ -4,6 +4,7 @@ public interface IAssetGrain : IGrainWithStringKey
 {
     Task Initialize(string siteId);
     Task<AssetStatus> GetStatus();
+    Task Delete();
 }
 
 public interface IBatteryGrain : IAssetGrain

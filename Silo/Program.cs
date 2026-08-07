@@ -11,6 +11,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddSingleton<IProtocolAdapter, SimulatedProtocolAdapter>();
 builder.Services.AddOptions<AssetOptions>().BindConfiguration(AssetOptions.SectionName);
+builder.Services.AddOptions<AssetPollerOptions>().BindConfiguration(AssetPollerOptions.SectionName);
 
 var connectionString = builder.Configuration.GetConnectionString("orleans-db")
     ?? throw new InvalidOperationException("Connection string 'orleans-db' not found");

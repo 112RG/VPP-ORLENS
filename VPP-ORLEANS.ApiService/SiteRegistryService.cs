@@ -13,6 +13,12 @@ public sealed class SiteRegistryService(IClusterClient cluster, IOptions<SiteReg
         await cluster.GetGrain<ISiteRegistryGrain>(shard).Register(title);
     }
 
+    public async Task RemoveAsync(string title)
+    {
+        int shard = SiteRegistryPartitioning.ComputeShard(title, ShardCount);
+        await cluster.GetGrain<ISiteRegistryGrain>(shard).Remove(title);
+    }
+
     public async Task<(string[] Titles, int Total)> GetTitlesAsync(int page, int pageSize)
     {
         int shardCount = ShardCount;

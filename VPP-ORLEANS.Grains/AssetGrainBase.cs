@@ -26,7 +26,7 @@ public abstract class AssetGrainBase<TState> : Grain, IAssetGrain
 
     protected abstract AssetKind Kind { get; }
 
-    public override Task OnActivateAsync(CancellationToken ct)
+    public override async Task OnActivateAsync(CancellationToken ct)
     {
         var asset = _options.Value;
         _telemetryTimer = this.RegisterGrainTimer(
@@ -39,7 +39,7 @@ public abstract class AssetGrainBase<TState> : Grain, IAssetGrain
                 KeepAlive = true
             });
 
-        return Task.CompletedTask;
+        await InitializeProtocolAsync();
     }
 
     public virtual async Task Initialize(string siteId)
@@ -50,7 +50,12 @@ public abstract class AssetGrainBase<TState> : Grain, IAssetGrain
             OnInitialized();
             await State.WriteStateAsync();
         }
+
+        await InitializeProtocolAsync();
+        await PollHardwareAsync();
     }
+
+    protected virtual Task InitializeProtocolAsync() => Task.CompletedTask;
 
     protected virtual void OnInitialized()
     {
@@ -71,6 +76,12 @@ public abstract class AssetGrainBase<TState> : Grain, IAssetGrain
             IsOnline = online,
             LastTelemetryUtc = asset.LastTelemetryUtc
         });
+    }
+
+    public async Task Delete()
+    {
+        await State.ClearStateAsync();
+        this.DeactivateOnIdle();
     }
 
     protected abstract double GetCurrentKw(TState state);

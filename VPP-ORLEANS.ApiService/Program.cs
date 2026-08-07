@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using VPP_ORLEANS.ApiService;
 using VPP_ORLEANS.Contracts;
 using VPP_ORLEANS.GrainInterfaces;
@@ -22,6 +23,9 @@ builder.UseOrleansClient(client =>
 builder.Services.Configure<SiteRegistryOptions>(
     builder.Configuration.GetSection(SiteRegistryOptions.SectionName));
 builder.Services.AddSingleton<SiteRegistryService>();
+
+builder.Services.Configure<AssetPollerOptions>(
+    builder.Configuration.GetSection(AssetPollerOptions.SectionName));
 
 var app = builder.Build();
 
@@ -80,12 +84,29 @@ app.MapPut("/site/{title}/toggle", async (string title, IClusterClient cluster) 
     };
 });
 
-app.MapPost("/site/{site}/assets", async (string site, AddAssetRequest req, IClusterClient cluster) =>
+app.MapDelete("/site/{title}", async (string title, IClusterClient cluster, SiteRegistryService registry) =>
+{
+    await cluster.GetGrain<ISiteGrain>(title).Delete();
+    await registry.RemoveAsync(title);
+    return Results.NoContent();
+});
+
+app.MapDelete("/site/{site}/assets/{kind}/{assetId}", async (string site, AssetKind kind, string assetId, IClusterClient cluster) =>
+{
+    var siteGrain = cluster.GetGrain<ISiteGrain>(site);
+    await siteGrain.RemoveAsset(kind, assetId);
+    return Results.NoContent();
+});
+
+app.MapPost("/site/{site}/assets", async (string site, AddAssetRequest req, IClusterClient cluster, IOptions<AssetPollerOptions> pollerOptions) =>
 {
     await cluster.GetGrain<ISiteGrain>(site).RegisterAsset(req.Kind, req.AssetId);
 
     IAssetGrain asset = ResolveAsset(req.Kind, req.AssetId, cluster);
     await asset.Initialize(site);
+
+    int shard = SiteRegistryPartitioning.ComputeShard(req.AssetId, pollerOptions.Value.ShardCount);
+    await cluster.GetGrain<IAssetPollerGrain>(shard).Register(req.Kind, req.AssetId);
 
     var status = await asset.GetStatus();
     return ToItem(status);

@@ -20,6 +20,7 @@ public class TestSiloConfigurator : ISiloConfigurator
         {
             services.AddSingleton<IProtocolAdapter, SimulatedProtocolAdapter>();
             services.AddOptions<AssetOptions>();
+            services.AddOptions<AssetPollerOptions>();
         });
     }
 }

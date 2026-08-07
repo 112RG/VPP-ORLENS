@@ -21,6 +21,15 @@ public class BatteryGrain : AssetGrainBase<BatteryState>, IBatteryGrain
             State.State.SocPercent = 50;
     }
 
+    protected override Task InitializeProtocolAsync()
+    {
+        var state = State.State;
+        return Protocol.SeedBatteryAsync(
+            this.GetPrimaryKeyString(),
+            state.CapacityKwh > 0 ? state.CapacityKwh : 13.5,
+            state.SocPercent > 0 ? state.SocPercent : 50);
+    }
+
     public Task ReportTelemetry(BatteryTelemetry telemetry)
     {
         State.State.SocPercent = telemetry.SocPercent;

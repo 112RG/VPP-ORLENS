@@ -1,7 +1,10 @@
 @page "/site"
 @rendermode InteractiveServer
 @inject VPP_ORLEANS.Web.SiteApiClient Client
+@inject IConfiguration Configuration
+@inject IDialogService DialogService
 @using VPP_ORLEANS.GrainInterfaces
+@implements IAsyncDisposable
 
 <PageTitle>Sites</PageTitle>
 
@@ -37,9 +40,16 @@ else
         {
             <FluentCard>
                 <FluentStack Orientation="Orientation.Vertical" Gap="12">
-                    <FluentCheckbox Label="@site.Title"
-                                    Value="@site.IsActive"
-                                    ValueChanged="(bool v) => ToggleSite(site.Title)" />
+                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8">
+                        <FluentCheckbox Label="@site.Title"
+                                        Value="@site.IsActive"
+                                        ValueChanged="(bool v) => ToggleSite(site.Title)"
+                                        Style="flex: 1" />
+                        <FluentButton Appearance="@Appearance.Accent"
+                                      IconStart="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Delete())"
+                                      Title="Delete site"
+                                      OnClick="@(() => ConfirmDeleteSite(site.Title))" />
+                    </FluentStack>
 
                     <div style="margin-left: 1.5rem">
                         @if (assetsBySite.TryGetValue(site.Title, out var assets) && assets.Length > 0)
@@ -49,23 +59,44 @@ else
                                 {
                                     <FluentGridItem xs="6" md="4" lg="3">
                                         <FluentCard>
-                                            <FluentStack Orientation="Orientation.Vertical" Gap="6">
-                                                <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8" Style="flex-wrap: wrap;">
-                                                    <FluentBadge Appearance="@(asset.Kind == AssetKind.Battery ? Appearance.Accent : Appearance.Lightweight)">
-                                                        @(asset.Kind == AssetKind.Battery ? "BATTERY" : "SOLAR")
-                                                    </FluentBadge>
-                                                    <strong style="word-break: break-word;">@asset.AssetId</strong>
-                                                </FluentStack>
-                                                <span style="color: var(--neutral-foreground-rest)">
-                                                    @asset.CurrentKw.ToString("0.0") kW &#183; @(asset.IsOnline ? "online" : "offline")
-                                                </span>
+                                                <FluentStack Orientation="Orientation.Vertical" Gap="6">
+                                                    <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center" Gap="8" Style="flex-wrap: wrap;">
+                                                        <FluentBadge Appearance="@(asset.Kind == AssetKind.Battery ? Appearance.Accent : Appearance.Lightweight)">
+                                                            @(asset.Kind == AssetKind.Battery ? "BATTERY" : "SOLAR")
+                                                        </FluentBadge>
+                                                        <strong style="word-break: break-word;">@asset.AssetId</strong>
+                                                        <FluentButton Appearance="@Appearance.Accent"
+                                                                      IconStart="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Delete())"
+                                                                      Title="Remove asset"
+                                                                      Style="flex-shrink: 0;"
+                                                                      OnClick="@(() => ConfirmRemoveAsset(site.Title, asset.Kind, asset.AssetId))" />
+                                                    </FluentStack>
 
-                                                @if (asset.Kind == AssetKind.Battery)
-                                                {
-                                                    <DispatchControl DispatchValue="@(asset.CurrentKw)"
-                                                                     OnDispatch="@(kw => Dispatch(asset.AssetId, site.Title, kw))" />
-                                                }
-                                            </FluentStack>
+                                                    @if (asset.Kind == AssetKind.Battery && batteryInfo.TryGetValue(asset.AssetId, out var info))
+                                                    {
+                                                        <span style="color: var(--neutral-foreground-rest)">
+                                                            SOC <strong>@info.SocPercent.ToString("0.0")%</strong>
+                                                            &#183; @info.CurrentKw.ToString("0.0") kW
+                                                            &#183; @(info.IsOnline ? "online" : "offline")
+                                                        </span>
+                                                        <span style="color: var(--neutral-foreground-rest)">
+                                                            Desired <strong>@info.DesiredKw.ToString("0.0") kW</strong>
+                                                            &#183; Available <strong>@info.AvailableCapacityKwh.ToString("0.0") kWh</strong>
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="color: var(--neutral-foreground-rest)">
+                                                            @asset.CurrentKw.ToString("0.0") kW &#183; @(asset.IsOnline ? "online" : "offline")
+                                                        </span>
+                                                    }
+
+                                                    @if (asset.Kind == AssetKind.Battery)
+                                                    {
+                                                        <DispatchControl DispatchValue="@(asset.CurrentKw)"
+                                                                         OnDispatch="@(kw => Dispatch(asset.AssetId, site.Title, kw))" />
+                                                    }
+                                                </FluentStack>
                                         </FluentCard>
                                     </FluentGridItem>
                                 }
@@ -106,8 +137,50 @@ else
     private string? loadError;
 
     private Dictionary<string, Contracts.AssetItem[]> assetsBySite = new();
+    private Dictionary<string, Contracts.BatteryInfo> batteryInfo = new();
 
-    protected override Task OnInitializedAsync() => LoadPageAsync();
+    private PeriodicTimer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+        await StartRefreshTimerAsync();
+    }
+
+    private async Task StartRefreshTimerAsync()
+    {
+        int intervalSeconds = Configuration.GetValue("Ui:RefreshIntervalSeconds", 15);
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(intervalSeconds));
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _refreshTimer.WaitForNextTickAsync())
+                {
+                    await InvokeAsync(LoadPageAsync);
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                await InvokeAsync(() => loadError = $"Refresh failed: {ex.Message}");
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_refreshTimer is not null)
+        {
+            _refreshTimer.Dispose();
+            _refreshTimer = null;
+        }
+    }
 
     private async Task LoadPageAsync()
     {
@@ -134,6 +207,16 @@ else
         assetsBySite = current
             .Zip(results, (s, assets) => (s.Title, assets))
             .ToDictionary(x => x.Title, x => x.assets);
+
+        var batteryIds = current
+            .SelectMany(s => assetsBySite.GetValueOrDefault(s.Title) ?? [])
+            .Where(a => a.Kind == AssetKind.Battery)
+            .Select(a => a.AssetId)
+            .Distinct()
+            .ToArray();
+
+        var details = await Task.WhenAll(batteryIds.Select(id => Client.GetBatteryAsync(id)));
+        batteryInfo = details.ToDictionary(d => d.AssetId, d => d);
     }
 
     private async Task AddSite()
@@ -168,6 +251,12 @@ else
             assetsBySite[siteTitle] = [.. list, item];
         else
             assetsBySite[siteTitle] = [item];
+
+        if (kind == AssetKind.Battery)
+        {
+            var detail = await Client.GetBatteryAsync(assetId);
+            batteryInfo[assetId] = detail;
+        }
     }
 
     private async Task Dispatch(string assetId, string siteTitle, double kw)
@@ -179,6 +268,74 @@ else
 
         var assets = await Client.GetAssetsAsync(siteTitle);
         assetsBySite[siteTitle] = assets;
+
+        var detail = await Client.GetBatteryAsync(assetId);
+        batteryInfo[assetId] = detail;
+    }
+
+    private async Task ConfirmRemoveAsset(string siteTitle, AssetKind kind, string assetId)
+    {
+        bool confirmed = await ConfirmAsync($"Remove asset '{assetId}'?",
+            "This removes the asset and its simulated data.");
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await Client.RemoveAssetAsync(siteTitle, kind, assetId);
+
+            if (assetsBySite.TryGetValue(siteTitle, out var list))
+                assetsBySite[siteTitle] = list.Where(a => a.AssetId != assetId).ToArray();
+
+            batteryInfo.Remove(assetId);
+            loadError = null;
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Unable to remove asset: {ex.Message}";
+        }
+    }
+
+    private async Task ConfirmDeleteSite(string title)
+    {
+        bool confirmed = await ConfirmAsync($"Delete site '{title}'?",
+            "This deletes the site and all of its assets.");
+
+        if (!confirmed)
+            return;
+
+        try
+        {
+            await Client.DeleteSiteAsync(title);
+
+            if (sites is not null)
+                sites = sites.Where(s => s.Title != title).ToArray();
+
+            assetsBySite.Remove(title);
+            loadError = null;
+            total--;
+            totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Unable to delete site: {ex.Message}";
+        }
+    }
+
+    private async Task<bool> ConfirmAsync(string title, string message)
+    {
+        var parameters = new DialogParameters
+        {
+            Title = title,
+            Modal = true,
+            ShowDismiss = false,
+            Width = "420px"
+        };
+
+        var dialog = await DialogService.ShowDialogAsync<ConfirmDialog>(new ConfirmRequest(message), parameters);
+        var result = await dialog.GetReturnValueAsync<bool?>();
+        return result ?? false;
     }
 
     private async Task PrevPage()
